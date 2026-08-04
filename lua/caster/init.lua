@@ -55,8 +55,12 @@ local function current_file()
   return M.last_file
 end
 
-function M.state()
-  return Tree.build(M.root, current_file(), M.config)
+function M.state(max_entries)
+  local config = M.config
+  if max_entries then
+    config = vim.tbl_extend("force", {}, config, { max_entries = max_entries })
+  end
+  return Tree.build(M.root, current_file(), config)
 end
 
 function M.refresh()
@@ -98,7 +102,9 @@ function M.start(root_override)
   M.root = resolve_root(root_override)
   M.last_file = nil
   local initial_state = M.state()
-  local server = Server.new(M.config, read_overlay(), initial_state)
+  local server = Server.new(M.config, read_overlay(), initial_state, function(max_entries)
+    return M.state(max_entries)
+  end)
   local ok, port_or_error = pcall(server.start, server)
   if not ok then
     error("Caster Studio: " .. tostring(port_or_error))

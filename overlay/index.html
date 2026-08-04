@@ -12,8 +12,9 @@
       --folder: #89b4fa;
       --text: #e6e9ef;
       --muted: #8b93a7;
-      --panel: rgba(17, 18, 27, .80);
+      --panel-opacity: .80;
       --row-height: 22px;
+      --panel-width: 300px;
     }
 
     * { box-sizing: border-box; }
@@ -32,16 +33,19 @@
     }
 
     .panel {
+      position: relative;
       display: flex;
       flex-direction: column;
-      width: 300px;
+      width: min(var(--panel-width), 100vw);
+      min-width: min(220px, 100vw);
+      max-width: 100vw;
       height: 100vh;
       overflow: hidden;
       padding: 0;
       border: 1px solid rgba(255, 255, 255, .075);
       border-left: 0;
       border-radius: 0 7px 7px 0;
-      background: var(--panel);
+      background: rgba(17, 18, 27, var(--panel-opacity));
       box-shadow: 12px 0 35px rgba(0, 0, 0, .25), inset 0 1px rgba(255, 255, 255, .035);
       opacity: 0;
       transform: translateY(8px) scale(.985);
@@ -168,6 +172,45 @@
       font-weight: 400;
     }
 
+    .width-resizer {
+      position: absolute;
+      z-index: 10;
+      top: 0;
+      right: 0;
+      width: 9px;
+      height: 100%;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: ew-resize;
+      touch-action: none;
+    }
+
+    .width-resizer::after {
+      position: absolute;
+      top: 8px;
+      right: 2px;
+      bottom: 8px;
+      width: 2px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, .12);
+      content: "";
+      opacity: 0;
+      transition: opacity 150ms ease, background 150ms ease;
+    }
+
+    .width-resizer:hover::after,
+    .width-resizer:focus-visible::after,
+    .width-resizer.dragging::after {
+      background: var(--accent);
+      opacity: .8;
+    }
+
+    .width-resizer:focus-visible {
+      outline: 1px solid var(--accent);
+      outline-offset: -2px;
+    }
+
 
     @media (max-height: 320px) {
       :root { --row-height: 19px; }
@@ -182,6 +225,16 @@
       <span class="project-name" id="project-name"></span>
     </header>
     <ol class="tree" id="tree"></ol>
+    <button
+      class="width-resizer"
+      id="width-resizer"
+      type="button"
+      aria-label="Resize project tree width"
+      role="separator"
+      aria-orientation="vertical"
+      aria-valuemin="220"
+      title="Drag to resize"
+    ></button>
   </main>
 
   <script>
@@ -189,10 +242,16 @@
     const tree = document.getElementById('tree');
     const status = document.getElementById('status');
     const projectName = document.getElementById('project-name');
+    const widthResizer = document.getElementById('width-resizer');
     let previousPosition = null;
     let firstRender = true;
     let lastSignature = '';
-
+    let events = null;
+    let visibleRows = null;
+    let panelWidth = 300;
+    try {
+      panelWidth = Number(localStorage.getItem('caster-panel-width')) || panelWidth;
+    } catch (_) {}
     function makeRow(entry) {
       const row = document.createElement('li');
       row.className = `entry ${entry.kind}${entry.active ? ' active' : ''}${entry.unlisted ? ' unlisted' : ''}`;
@@ -239,10 +298,12 @@
       panel.classList.add('connected');
       status.classList.remove('disconnected');
       status.setAttribute('aria-label', 'Connected');
+      panel.style.setProperty('--panel-opacity', state.opacity ?? .8);
 
       const entries = state.entries || [];
       const signature = JSON.stringify([
         state.root,
+        state.opacity,
         state.root_unlisted,
         state.active_path,
         entries.map((entry) => [entry.path, entry.active, entry.position, entry.unlisted]),
@@ -259,16 +320,82 @@
       firstRender = false;
     }
 
-    const events = new EventSource('/events');
-    events.onmessage = (event) => render(JSON.parse(event.data));
-    events.onerror = () => {
-      status.classList.add('disconnected');
-      status.setAttribute('aria-label', 'Disconnected');
-    };
-    events.onopen = () => {
-      status.classList.remove('disconnected');
-      status.setAttribute('aria-label', 'Connected');
-    };
+    function applyPanelWidth() {
+      const width = Math.max(220, Math.min(panelWidth, window.innerWidth));
+      panel.style.setProperty('--panel-width', `${width}px`);
+      widthResizer.setAttribute('aria-valuenow', String(Math.round(width)));
+    }
+
+    function savePanelWidth() {
+      try {
+        localStorage.setItem('caster-panel-width', String(Math.round(panelWidth)));
+      } catch (_) {}
+    }
+
+    function resizePanel(clientX) {
+      panelWidth = Math.max(220, Math.min(clientX, window.innerWidth));
+      applyPanelWidth();
+    }
+
+    widthResizer.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      widthResizer.setPointerCapture(event.pointerId);
+      widthResizer.classList.add('dragging');
+      resizePanel(event.clientX);
+    });
+    widthResizer.addEventListener('pointermove', (event) => {
+      if (widthResizer.hasPointerCapture(event.pointerId)) resizePanel(event.clientX);
+    });
+    widthResizer.addEventListener('pointerup', (event) => {
+      widthResizer.releasePointerCapture(event.pointerId);
+      widthResizer.classList.remove('dragging');
+      savePanelWidth();
+    });
+    widthResizer.addEventListener('pointercancel', () => {
+      widthResizer.classList.remove('dragging');
+    });
+    widthResizer.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      panelWidth += event.key === 'ArrowRight' ? 10 : -10;
+      resizePanel(panelWidth);
+      savePanelWidth();
+    });
+
+    function rowCapacity() {
+      const styles = getComputedStyle(tree);
+      const available = tree.clientHeight
+        - parseFloat(styles.paddingTop)
+        - parseFloat(styles.paddingBottom);
+      const rowHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--row-height'));
+      return Math.max(3, Math.floor(available / rowHeight));
+    }
+
+    function connectForViewport() {
+      const capacity = rowCapacity();
+      if (capacity === visibleRows && events) return;
+      visibleRows = capacity;
+      if (events) events.close();
+      events = new EventSource(`/events?max_entries=${capacity}`);
+      events.onmessage = (event) => render(JSON.parse(event.data));
+      events.onerror = () => {
+        status.classList.add('disconnected');
+        status.setAttribute('aria-label', 'Disconnected');
+      };
+      events.onopen = () => {
+        status.classList.remove('disconnected');
+        status.setAttribute('aria-label', 'Connected');
+      };
+    }
+
+    applyPanelWidth();
+    new ResizeObserver(() => {
+      applyPanelWidth();
+      connectForViewport();
+    }).observe(document.body);
+    connectForViewport();
+
+
   </script>
 </body>
 </html>

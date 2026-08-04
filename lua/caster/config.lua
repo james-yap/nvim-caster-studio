@@ -4,6 +4,7 @@ M.defaults = {
   host = "127.0.0.1",
   port = 8765,
   root = nil,
+  opacity = 0.8,
   max_entries = 32,
   max_scan_entries = 5000,
   max_depth = 8,
@@ -25,7 +26,11 @@ M.defaults = {
 }
 
 function M.resolve(opts)
-  return vim.tbl_deep_extend("force", {}, M.defaults, opts or {})
+  local config = vim.tbl_deep_extend("force", {}, M.defaults, opts or {})
+  if type(config.opacity) ~= "number" or config.opacity < 0 or config.opacity > 1 then
+    error("caster: opacity must be a number between 0 and 1")
+  end
+  return config
 end
 
 return M

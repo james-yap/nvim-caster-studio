@@ -404,6 +404,7 @@ function M.build(root, current_file, config)
   return {
     root = root,
     root_name = vim.fs.basename(root),
+    opacity = config.opacity,
     root_unlisted = root_unlisted,
     active_path = active_node and active_path or nil,
     active_position = active_node and active_node.position or nil,

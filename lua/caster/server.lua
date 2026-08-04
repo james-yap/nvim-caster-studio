@@ -28,11 +28,12 @@ local function close_socket(socket)
   end
 end
 
-function Server.new(config, html, initial_state)
+function Server.new(config, html, initial_state, state_provider)
   return setmetatable({
     config = config,
     html = html,
     state = initial_state,
+    state_provider = state_provider,
     tcp = nil,
     clients = {},
   }, Server)
@@ -46,7 +47,9 @@ function Server:_remove_client(socket)
 end
 
 function Server:_send_event(socket)
-  local payload = "data: " .. vim.json.encode(self.state) .. "\n\n"
+  local max_entries = self.clients[socket]
+  local state = max_entries and self.state_provider and self.state_provider(max_entries) or self.state
+  local payload = "data: " .. vim.json.encode(state) .. "\n\n"
   socket:write(payload, function(error)
     if error then
       self:_remove_client(socket)
@@ -70,9 +73,13 @@ function Server:_handle(socket, request)
     return
   end
 
+  local requested_entries = tonumber((target or ""):match("[?&]max_entries=(%d+)"))
+  if requested_entries then
+    requested_entries = math.max(3, math.min(requested_entries, self.config.max_scan_entries))
+  end
   target = (target or "/"):match("^[^?]+")
   if target == "/events" then
-    self.clients[socket] = true
+    self.clients[socket] = requested_entries or false
     socket:write(table.concat({
       "HTTP/1.1 200 OK",
       "Content-Type: text/event-stream",
@@ -85,7 +92,11 @@ function Server:_handle(socket, request)
       if error then
         self:_remove_client(socket)
       else
-        self:_send_event(socket)
+        vim.schedule(function()
+          if not socket:is_closing() then
+            self:_send_event(socket)
+          end
+        end)
       end
     end)
     return

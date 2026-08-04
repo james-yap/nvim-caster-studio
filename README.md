@@ -31,7 +31,7 @@ The default browser-source URL is:
 http://127.0.0.1:8765/
 ```
 
-Add that URL to OBS as a **Browser** source. Use a width of `300` and any desired canvas height (for example `300 × 700`). The 80%-opaque panel is fixed to the full source height and flush with its left edge.
+Add that URL to OBS as a **Browser** source. The panel fills the source height and stays flush with its left edge. Drag its right-edge handle in browser interaction mode to adjust the width; the choice is saved in browser storage. Taller browser sources automatically show more tree rows and reduce pruning.
 
 `:CasterStart` uses Neovim's current working directory. To cast a different root:
 
@@ -53,7 +53,8 @@ require("caster").setup({
   host = "127.0.0.1",
   port = 8765,
   root = nil,              -- string, function returning a path, or current cwd
-  max_entries = 32,        -- viewport rows, including broot-style pruning rows
+  opacity = 0.8,           -- panel background opacity, from 0 (clear) to 1 (solid)
+  max_entries = 32,        -- fallback rows for API clients without a viewport size
   max_scan_entries = 5000, -- hard bound for filesystem traversal
   max_depth = 8,
   show_hidden = false,
