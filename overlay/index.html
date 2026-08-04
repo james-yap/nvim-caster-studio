@@ -13,6 +13,7 @@
       --text: #e6e9ef;
       --muted: #8b93a7;
       --panel-opacity: .80;
+      --font-size: 10.5px;
       --row-height: 22px;
       --panel-width: 300px;
     }
@@ -44,7 +45,6 @@
       padding: 0;
       border: 1px solid rgba(255, 255, 255, .075);
       border-left: 0;
-      border-radius: 0 7px 7px 0;
       background: rgba(17, 18, 27, var(--panel-opacity));
       box-shadow: 12px 0 35px rgba(0, 0, 0, .25), inset 0 1px rgba(255, 255, 255, .035);
       opacity: 0;
@@ -85,7 +85,7 @@
     .project-name {
       overflow: hidden;
       color: #eef1f6;
-      font-size: 11px;
+      font-size: var(--font-size);
       font-weight: 750;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -114,7 +114,7 @@
       padding: 0 5px 0 calc(2px + var(--depth) * 11px);
       border-radius: 5px;
       color: #c9ceda;
-      font-size: 10.5px;
+      font-size: var(--font-size);
       line-height: 1;
       transform-origin: left center;
       transition: color 170ms ease, background 170ms ease, transform 200ms cubic-bezier(.2, .9, .2, 1);
@@ -153,7 +153,6 @@
     .entry.omission {
       height: 100%;
       color: var(--muted);
-      font-size: 8px;
       font-style: italic;
     }
 
@@ -163,6 +162,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      line-height: 1.3;
     }
 
     .forced .name::after {
@@ -213,8 +213,10 @@
 
 
     @media (max-height: 320px) {
-      :root { --row-height: 19px; }
-      .entry { font-size: 9.5px; }
+      :root {
+        --font-size: 9.5px;
+        --row-height: 19px;
+      }
     }
   </style>
 </head>
@@ -299,11 +301,17 @@
       status.classList.remove('disconnected');
       status.setAttribute('aria-label', 'Connected');
       panel.style.setProperty('--panel-opacity', state.opacity ?? .8);
+      if (state.font_size == null) {
+        document.documentElement.style.removeProperty('--font-size');
+      } else {
+        document.documentElement.style.setProperty('--font-size', `${state.font_size}px`);
+      }
 
       const entries = state.entries || [];
       const signature = JSON.stringify([
         state.root,
         state.opacity,
+        state.font_size,
         state.root_unlisted,
         state.active_path,
         entries.map((entry) => [entry.path, entry.active, entry.position, entry.unlisted]),

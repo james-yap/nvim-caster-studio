@@ -405,6 +405,7 @@ function M.build(root, current_file, config)
     root = root,
     root_name = vim.fs.basename(root),
     opacity = config.opacity,
+    font_size = config.font_size,
     root_unlisted = root_unlisted,
     active_path = active_node and active_path or nil,
     active_position = active_node and active_node.position or nil,

@@ -54,6 +54,7 @@ require("caster").setup({
   port = 8765,
   root = nil,              -- string, function returning a path, or current cwd
   opacity = 0.8,           -- panel background opacity, from 0 (clear) to 1 (solid)
+  font_size = nil,         -- overlay text size in pixels; nil uses the responsive default
   max_entries = 32,        -- fallback rows for API clients without a viewport size
   max_scan_entries = 5000, -- hard bound for filesystem traversal
   max_depth = 8,
