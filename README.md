@@ -31,7 +31,7 @@ The default browser-source URL is:
 http://127.0.0.1:8765/
 ```
 
-Add that URL to OBS as a **Browser** source. A compact source size around `310 × 700` works well; the page background is transparent and the panel adapts to the available height.
+Add that URL to OBS as a **Browser** source. Use a width of `300` and any desired canvas height (for example `300 × 700`). The 80%-opaque panel is fixed to the full source height and flush with its left edge.
 
 `:CasterStart` uses Neovim's current working directory. To cast a different root:
 
@@ -53,10 +53,11 @@ require("caster").setup({
   host = "127.0.0.1",
   port = 8765,
   root = nil,              -- string, function returning a path, or current cwd
-  max_entries = 48,        -- maximum visible rows, including omission rows
+  max_entries = 32,        -- viewport rows, including broot-style pruning rows
   max_scan_entries = 5000, -- hard bound for filesystem traversal
   max_depth = 8,
   show_hidden = false,
+  respect_gitignore = true,
   open_browser = false,
   ignore = {
     [".git"] = true,
@@ -74,8 +75,9 @@ Configuration is merged with the defaults. Set a default ignored name to `false`
 
 - `BufEnter`, `BufWinEnter`, and `DirChanged` publish a fresh state over Server-Sent Events.
 - Directories sort before files, then alphabetically, like a polished `tree` view.
-- Large projects are windowed around the focused file. Omission rows report hidden item counts.
-- The active file is retained even when traversal hits a depth or scan limit.
+- Large projects use broot-style breadth-first filling: shallow branches are represented before deeper traversal.
+- Partially represented branches use local `N unlisted` pruning rows or a directory ellipsis, keeping every rendered row inside the viewport.
+- Git repositories use Git's own ignore matcher, including nested `.gitignore` files, negations, repository excludes, and global excludes. Patterns apply regardless of index status, matching broot's filesystem view.
 - Transient interfaces such as Telescope prompts retain the last normal file highlight until a file is selected.
 - The server binds to localhost by default and exposes only read-only `GET` endpoints.
 

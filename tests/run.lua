@@ -35,15 +35,72 @@ check(not vim.tbl_contains(vim.tbl_map(function(entry)
 end, state.entries), ".git"), "hidden directories are ignored")
 
 local outside = Tree.build(root, root .. "/missing/current.lua", config)
-local forced
-for _, entry in ipairs(outside.entries) do
-  if entry.active then
-    forced = entry
-  end
-end
-check(forced and forced.path == "missing/current.lua" and forced.forced, "focused files excluded from the scan are forced into view")
+check(outside.active_path == nil, "files absent from the scanned project remain excluded")
 check(Tree.relative(root .. "/src/file-01.lua", root) == "src/file-01.lua", "relative paths strip the exact root prefix")
 check(Tree.relative(root .. "-other/file.lua", root) == nil, "relative paths reject sibling prefix collisions")
+
+local breadth_root = vim.fn.tempname()
+for _, directory in ipairs({ "alpha", "beta", "gamma" }) do
+  vim.fn.mkdir(breadth_root .. "/" .. directory, "p")
+  for index = 1, 3 do
+    vim.fn.writefile({ directory }, string.format("%s/%s/file-%d.lua", breadth_root, directory, index))
+  end
+end
+local breadth_state = Tree.build(breadth_root, nil, Config.resolve({
+  max_entries = 6,
+  respect_gitignore = false,
+}))
+local breadth_paths = {}
+local pruning_rows = 0
+for _, entry in ipairs(breadth_state.entries) do
+  breadth_paths[entry.path] = true
+  if entry.kind == "omission" then
+    pruning_rows = pruning_rows + 1
+  end
+end
+check(breadth_paths.alpha and breadth_paths.beta and breadth_paths.gamma, "breadth-first compaction represents every shallow branch")
+check(pruning_rows == 3, "partially expanded branches become broot-style unlisted rows")
+check(#breadth_state.entries == 6, "broot-style compaction exactly fills its row target")
+
+local git_root = vim.fn.tempname()
+vim.fn.mkdir(git_root .. "/cache", "p")
+vim.fn.mkdir(git_root .. "/sub", "p")
+vim.fn.mkdir(git_root .. "/empty", "p")
+vim.fn.writefile({ "*.log", "cache/", "!important.log" }, git_root .. "/.gitignore")
+vim.fn.writefile({ "*.tmp" }, git_root .. "/sub/.gitignore")
+vim.fn.writefile({ "keep" }, git_root .. "/keep.lua")
+vim.fn.writefile({ "ignored" }, git_root .. "/ignored.log")
+vim.fn.writefile({ "included" }, git_root .. "/important.log")
+vim.fn.writefile({ "tracked" }, git_root .. "/tracked.log")
+vim.fn.writefile({ "ignored" }, git_root .. "/cache/generated.lua")
+vim.fn.writefile({ "ignored" }, git_root .. "/sub/generated.tmp")
+vim.fn.writefile({ "keep" }, git_root .. "/sub/keep.lua")
+vim.system({ "git", "-C", git_root, "init", "-q" }):wait()
+vim.system({ "git", "-C", git_root, "add", "-f", "tracked.log" }):wait()
+
+local ignored_state = Tree.build(git_root, nil, Config.resolve({ max_entries = 32 }))
+local ignored_paths = {}
+for _, entry in ipairs(ignored_state.entries) do
+  ignored_paths[entry.path] = true
+end
+check(ignored_paths["keep.lua"], "gitignore scanning retains ordinary untracked files")
+check(ignored_paths["important.log"], "gitignore negation rules re-include matching files")
+check(not ignored_paths["tracked.log"], "broot-style ignore patterns also hide matching tracked files")
+check(ignored_paths["sub/keep.lua"], "nested non-ignored files remain visible")
+check(ignored_paths.empty, "unignored empty directories remain represented")
+check(not ignored_paths["ignored.log"], "root gitignore patterns exclude matching files")
+check(not ignored_paths.cache, "ignored directories and their contents are excluded")
+check(not ignored_paths["sub/generated.tmp"], "nested gitignore files are respected")
+
+local unignored_state = Tree.build(git_root, nil, Config.resolve({
+  max_entries = 32,
+  respect_gitignore = false,
+}))
+local unignored_paths = {}
+for _, entry in ipairs(unignored_state.entries) do
+  unignored_paths[entry.path] = true
+end
+check(unignored_paths["ignored.log"], "gitignore filtering can be disabled explicitly")
 
 local Caster = require("caster")
 Caster.setup({ max_entries = 8 })
@@ -64,6 +121,8 @@ check(selected_state.active_path == "src/file-02.lua", "the next selected normal
 vim.cmd.enew({ bang = true })
 
 vim.fn.delete(root, "rf")
+vim.fn.delete(breadth_root, "rf")
+vim.fn.delete(git_root, "rf")
 
 if #failures > 0 then
   error("Caster Studio tests failed:\n- " .. table.concat(failures, "\n- "))

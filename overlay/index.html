@@ -12,7 +12,7 @@
       --folder: #89b4fa;
       --text: #e6e9ef;
       --muted: #8b93a7;
-      --panel: rgba(17, 18, 27, .91);
+      --panel: rgba(17, 18, 27, .80);
       --row-height: 22px;
     }
 
@@ -26,23 +26,23 @@
     }
 
     body {
-      padding: 2px 0 2px 3px;
+      padding: 0;
       color: var(--text);
       font-family: "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
     }
 
     .panel {
-      position: relative;
-      width: min(300px, calc(100vw - 3px));
-      max-height: calc(100vh - 4px);
+      display: flex;
+      flex-direction: column;
+      width: 300px;
+      height: 100vh;
       overflow: hidden;
-      padding: 3px 2px 3px 4px;
+      padding: 0;
       border: 1px solid rgba(255, 255, 255, .075);
-      border-radius: 7px;
-      background:
-        radial-gradient(circle at 12% 0%, rgba(137, 180, 250, .11), transparent 35%),
-        var(--panel);
-      box-shadow: 0 18px 55px rgba(0, 0, 0, .34), inset 0 1px rgba(255, 255, 255, .035);
+      border-left: 0;
+      border-radius: 0 7px 7px 0;
+      background: var(--panel);
+      box-shadow: 12px 0 35px rgba(0, 0, 0, .25), inset 0 1px rgba(255, 255, 255, .035);
       opacity: 0;
       transform: translateY(8px) scale(.985);
       transition: opacity 220ms ease, transform 220ms cubic-bezier(.2, .8, .2, 1);
@@ -53,29 +53,49 @@
       transform: none;
     }
 
+    header {
+      display: flex;
+      align-items: center;
+      flex: 0 0 27px;
+      gap: 7px;
+      min-width: 0;
+      padding: 0 7px;
+      border-bottom: 1px solid rgba(255, 255, 255, .075);
+    }
+
     .status {
-      position: absolute;
-      z-index: 3;
-      top: 4px;
-      right: 4px;
-      width: 4px;
-      height: 4px;
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
       border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 5px rgba(166, 227, 161, .55);
-      opacity: .65;
-      pointer-events: none;
+      box-shadow: 0 0 8px rgba(166, 227, 161, .72);
       transition: background 180ms ease, box-shadow 180ms ease;
     }
 
     .status.disconnected {
       background: #f38ba8;
-      box-shadow: 0 0 4px rgba(243, 139, 168, .45);
+      box-shadow: 0 0 7px rgba(243, 139, 168, .65);
+    }
+
+    .project-name {
+      overflow: hidden;
+      color: #eef1f6;
+      font-size: 11px;
+      font-weight: 750;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .tree {
+      display: grid;
+      grid-template-rows: repeat(var(--entry-count, 1), minmax(0, var(--row-height)));
+      align-content: start;
+      flex: 1 1 auto;
+      min-height: 0;
       margin: 0;
-      padding: 0;
+      padding: 2px 2px 2px 3px;
+      overflow: hidden;
       list-style: none;
     }
 
@@ -85,7 +105,7 @@
       display: flex;
       align-items: center;
       min-width: 0;
-      height: var(--row-height);
+      height: 100%;
       margin: 0;
       padding: 0 5px 0 calc(2px + var(--depth) * 11px);
       border-radius: 5px;
@@ -111,6 +131,10 @@
       color: rgba(137, 180, 250, .56);
     }
 
+    .entry.directory.unlisted::after {
+      content: "/ …";
+    }
+
     .entry.active {
       z-index: 2;
       color: var(--accent-bright);
@@ -123,7 +147,7 @@
     .entry.active::before { color: var(--accent); }
 
     .entry.omission {
-      height: 17px;
+      height: 100%;
       color: var(--muted);
       font-size: 8px;
       font-style: italic;
@@ -153,7 +177,10 @@
 </head>
 <body>
   <main class="panel" id="panel" aria-live="polite">
-    <span class="status" id="status" aria-label="Connected"></span>
+    <header>
+      <span class="status" id="status" aria-label="Connected"></span>
+      <span class="project-name" id="project-name"></span>
+    </header>
     <ol class="tree" id="tree"></ol>
   </main>
 
@@ -161,13 +188,14 @@
     const panel = document.getElementById('panel');
     const tree = document.getElementById('tree');
     const status = document.getElementById('status');
+    const projectName = document.getElementById('project-name');
     let previousPosition = null;
     let firstRender = true;
     let lastSignature = '';
 
     function makeRow(entry) {
       const row = document.createElement('li');
-      row.className = `entry ${entry.kind}${entry.active ? ' active' : ''}${entry.forced ? ' forced' : ''}`;
+      row.className = `entry ${entry.kind}${entry.active ? ' active' : ''}${entry.unlisted ? ' unlisted' : ''}`;
       row.style.setProperty('--depth', entry.depth || 0);
       row.dataset.position = entry.position || '';
       row.dataset.path = entry.path;
@@ -215,12 +243,15 @@
       const entries = state.entries || [];
       const signature = JSON.stringify([
         state.root,
+        state.root_unlisted,
         state.active_path,
-        entries.map((entry) => [entry.path, entry.active, entry.position]),
+        entries.map((entry) => [entry.path, entry.active, entry.position, entry.unlisted]),
       ]);
       if (signature === lastSignature) return;
       lastSignature = signature;
 
+      projectName.textContent = `${state.root_name || 'Project'}${state.root_unlisted ? ' …' : ''}`;
+      tree.style.setProperty('--entry-count', Math.max(1, entries.length));
       tree.replaceChildren(...entries.map(makeRow));
       const fromPosition = previousPosition;
       requestAnimationFrame(() => animateTravel(fromPosition, state.active_position));
