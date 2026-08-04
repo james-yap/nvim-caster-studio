@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neovim Caster Studio</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --accent: #a6e3a1;
+      --accent-bright: #c8f7c5;
+      --folder: #89b4fa;
+      --text: #e6e9ef;
+      --muted: #8b93a7;
+      --panel: rgba(17, 18, 27, .91);
+      --row-height: 32px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    body {
+      padding: 24px;
+      color: var(--text);
+      font-family: "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    }
+
+    .panel {
+      width: min(520px, calc(100vw - 48px));
+      max-height: calc(100vh - 48px);
+      overflow: hidden;
+      padding: 15px 14px 14px;
+      border: 1px solid rgba(255, 255, 255, .09);
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(137, 180, 250, .11), transparent 35%),
+        var(--panel);
+      box-shadow: 0 18px 55px rgba(0, 0, 0, .34), inset 0 1px rgba(255, 255, 255, .035);
+      opacity: 0;
+      transform: translateY(8px) scale(.985);
+      transition: opacity 220ms ease, transform 220ms cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .panel.connected {
+      opacity: 1;
+      transform: none;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      margin: 0 4px 10px;
+      padding-bottom: 11px;
+      border-bottom: 1px solid rgba(255, 255, 255, .075);
+    }
+
+    .nvim-mark {
+      width: 9px;
+      height: 9px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 13px rgba(166, 227, 161, .72);
+    }
+
+    .project {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .title {
+      overflow: hidden;
+      color: #f4f5f8;
+      font-size: 14px;
+      font-weight: 750;
+      letter-spacing: .01em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .root {
+      overflow: hidden;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .count {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .tree {
+      margin: 0;
+      padding: 0 3px;
+      list-style: none;
+    }
+
+    .entry {
+      --depth: 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      height: var(--row-height);
+      margin: 1px 0;
+      padding: 0 9px 0 calc(8px + var(--depth) * 17px);
+      border-radius: 8px;
+      color: #c9ceda;
+      font-size: 13px;
+      line-height: 1;
+      transform-origin: left center;
+      transition: color 170ms ease, background 170ms ease, transform 200ms cubic-bezier(.2, .9, .2, 1);
+      will-change: transform, background-color;
+    }
+
+    .entry::before {
+      content: "├─";
+      width: 25px;
+      flex: 0 0 auto;
+      color: rgba(139, 147, 167, .48);
+      letter-spacing: -3px;
+    }
+
+    .entry.directory { color: var(--folder); }
+    .entry.directory::after {
+      content: "/";
+      color: rgba(137, 180, 250, .56);
+    }
+
+    .entry.active {
+      z-index: 2;
+      color: var(--accent-bright);
+      background: linear-gradient(90deg, rgba(166, 227, 161, .17), rgba(166, 227, 161, .045));
+      box-shadow: inset 2px 0 var(--accent);
+      transform: translateX(4px) scale(1.045);
+      font-weight: 750;
+    }
+
+    .entry.active::before { color: var(--accent); }
+
+    .entry.omission {
+      height: 25px;
+      color: var(--muted);
+      font-size: 10px;
+      font-style: italic;
+    }
+
+    .entry.omission::before { content: "⋮ "; letter-spacing: normal; }
+
+    .name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .forced .name::after {
+      content: "  (outside scan)";
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 400;
+    }
+
+    .disconnected .nvim-mark {
+      background: #f38ba8;
+      box-shadow: 0 0 10px rgba(243, 139, 168, .6);
+    }
+
+    @media (max-height: 500px) {
+      :root { --row-height: 25px; }
+      body { padding: 12px; }
+      .panel { max-height: calc(100vh - 24px); }
+      .entry { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="panel" id="panel" aria-live="polite">
+    <header>
+      <span class="nvim-mark" aria-hidden="true"></span>
+      <div class="project">
+        <div class="title" id="title">Project</div>
+        <div class="root" id="root"></div>
+      </div>
+      <div class="count" id="count"></div>
+    </header>
+    <ol class="tree" id="tree"></ol>
+  </main>
+
+  <script>
+    const panel = document.getElementById('panel');
+    const tree = document.getElementById('tree');
+    const title = document.getElementById('title');
+    const root = document.getElementById('root');
+    const count = document.getElementById('count');
+    let previousPosition = null;
+    let firstRender = true;
+
+    function makeRow(entry) {
+      const row = document.createElement('li');
+      row.className = `entry ${entry.kind}${entry.active ? ' active' : ''}${entry.forced ? ' forced' : ''}`;
+      row.style.setProperty('--depth', entry.depth || 0);
+      row.dataset.position = entry.position || '';
+      row.dataset.path = entry.path;
+
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = entry.name;
+      row.append(name);
+      return row;
+    }
+
+    function animateTravel(fromPosition, nextPosition) {
+      if (firstRender || fromPosition == null || nextPosition == null || fromPosition === nextPosition) return;
+
+      const direction = nextPosition > fromPosition ? 1 : -1;
+      let rows = [...tree.querySelectorAll('.entry:not(.omission)')].filter((row) => {
+        const position = Number(row.dataset.position);
+        return direction > 0
+          ? position > fromPosition && position <= nextPosition
+          : position < fromPosition && position >= nextPosition;
+      });
+
+      if (!rows.length) rows = [...tree.querySelectorAll('.entry:not(.omission)')];
+      rows.sort((a, b) => direction * (Number(a.dataset.position) - Number(b.dataset.position)));
+
+      const step = Math.max(13, Math.min(42, 430 / Math.max(1, rows.length)));
+      rows.forEach((row, index) => {
+        row.animate([
+          { transform: 'translateX(0) scale(1)', offset: 0 },
+          { transform: 'translateX(9px) scale(1.105)', backgroundColor: 'rgba(137, 180, 250, .14)', offset: .48 },
+          { transform: row.classList.contains('active') ? 'translateX(4px) scale(1.045)' : 'translateX(0) scale(1)', offset: 1 },
+        ], {
+          duration: 300,
+          delay: index * step,
+          easing: 'cubic-bezier(.2,.8,.2,1)',
+        });
+      });
+    }
+
+    function render(state) {
+      title.textContent = state.title || state.root_name || 'Project';
+      root.textContent = state.root || '';
+      count.textContent = `${state.total || 0} items${state.scan_truncated ? '+' : ''}`;
+      tree.replaceChildren(...(state.entries || []).map(makeRow));
+      panel.classList.add('connected');
+      panel.classList.remove('disconnected');
+
+      const fromPosition = previousPosition;
+      requestAnimationFrame(() => animateTravel(fromPosition, state.active_position));
+      previousPosition = state.active_position;
+      firstRender = false;
+    }
+
+    const events = new EventSource('/events');
+    events.onmessage = (event) => render(JSON.parse(event.data));
+    events.onerror = () => panel.classList.add('disconnected');
+    events.onopen = () => panel.classList.remove('disconnected');
+  </script>
+</body>
+</html>

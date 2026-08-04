@@ -1,0 +1,118 @@
+local Config = require("caster.config")
+local Server = require("caster.server")
+local Tree = require("caster.tree")
+
+local M = {
+  config = Config.resolve(),
+  server = nil,
+  root = nil,
+  url = nil,
+}
+
+local function plugin_root()
+  local source = debug.getinfo(1, "S").source:sub(2)
+  return vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(source)))
+end
+
+local function read_overlay()
+  local path = plugin_root() .. "/overlay/index.html"
+  local file, error_message = io.open(path, "rb")
+  if not file then
+    error("could not read overlay at " .. path .. ": " .. tostring(error_message))
+  end
+  local html = file:read("*a")
+  file:close()
+  return html
+end
+
+local function resolve_root(override)
+  local configured = override or M.config.root
+  if type(configured) == "function" then
+    configured = configured()
+  end
+  local root = configured or vim.fn.getcwd()
+  root = vim.fs.normalize(vim.fn.fnamemodify(root, ":p")):gsub("/$", "")
+  if vim.fn.isdirectory(root) ~= 1 then
+    error("caster root is not a directory: " .. root)
+  end
+  return root
+end
+
+local function current_file()
+  local name = vim.api.nvim_buf_get_name(0)
+  if name == "" or vim.bo.buftype ~= "" then
+    return nil
+  end
+  return vim.fs.normalize(vim.fn.fnamemodify(name, ":p"))
+end
+
+function M.state()
+  local state = Tree.build(M.root, current_file(), M.config)
+  state.title = M.config.title
+  return state
+end
+
+function M.refresh()
+  if not M.server then
+    return
+  end
+  if not M.config.root then
+    M.root = resolve_root()
+  end
+  M.server:broadcast(M.state())
+end
+
+local function install_autocommands()
+  local group = vim.api.nvim_create_augroup("CasterStudioSession", { clear = true })
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "DirChanged" }, {
+    group = group,
+    callback = function()
+      vim.schedule(M.refresh)
+    end,
+    desc = "Update the Caster Studio overlay",
+  })
+end
+
+function M.start(root_override)
+  if M.server then
+    vim.notify("Caster Studio is already running at " .. M.url)
+    return M.url
+  end
+
+  M.root = resolve_root(root_override)
+  local initial_state = M.state()
+  local server = Server.new(M.config, read_overlay(), initial_state)
+  local ok, port_or_error = pcall(server.start, server)
+  if not ok then
+    error("Caster Studio: " .. tostring(port_or_error))
+  end
+
+  M.server = server
+  M.url = string.format("http://%s:%d/", M.config.host, port_or_error)
+  install_autocommands()
+  vim.notify("Caster Studio overlay: " .. M.url)
+
+  if M.config.open_browser and vim.ui.open then
+    vim.ui.open(M.url)
+  end
+  return M.url
+end
+
+function M.stop()
+  if not M.server then
+    return
+  end
+  M.server:stop()
+  M.server = nil
+  M.root = nil
+  M.url = nil
+  pcall(vim.api.nvim_del_augroup_by_name, "CasterStudioSession")
+  vim.notify("Caster Studio stopped")
+end
+
+function M.setup(opts)
+  M.config = Config.resolve(opts)
+  return M
+end
+
+return M
