@@ -31,7 +31,7 @@ The default browser-source URL is:
 http://127.0.0.1:8765/
 ```
 
-Add that URL to OBS as a **Browser** source. A source size around `560 × 900` works well; the page background is transparent and the panel adapts to the available height.
+Add that URL to OBS as a **Browser** source. A compact source size around `380 × 700` works well; the page background is transparent and the panel adapts to the available height.
 
 `:CasterStart` uses Neovim's current working directory. To cast a different root:
 
@@ -77,6 +77,7 @@ Configuration is merged with the defaults. Set a default ignored name to `false`
 - Directories sort before files, then alphabetically, like a polished `tree` view.
 - Large projects are windowed around the focused file. Omission rows report hidden item counts.
 - The active file is retained even when traversal hits a depth or scan limit.
+- Transient interfaces such as Telescope prompts retain the last normal file highlight until a file is selected.
 - The server binds to localhost by default and exposes only read-only `GET` endpoints.
 
 ## Verify

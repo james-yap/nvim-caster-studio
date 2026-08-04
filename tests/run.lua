@@ -45,6 +45,24 @@ check(forced and forced.path == "missing/current.lua" and forced.forced, "focuse
 check(Tree.relative(root .. "/src/file-01.lua", root) == "src/file-01.lua", "relative paths strip the exact root prefix")
 check(Tree.relative(root .. "-other/file.lua", root) == nil, "relative paths reject sibling prefix collisions")
 
+local Caster = require("caster")
+Caster.setup({ max_entries = 8 })
+Caster.root = (vim.uv or vim.loop).fs_realpath(root)
+Caster.last_file = nil
+vim.cmd.edit(vim.fn.fnameescape(root .. "/src/file-01.lua"))
+local normal_state = Caster.state()
+check(normal_state.active_path == "src/file-01.lua", "normal file buffers become the active overlay file")
+
+local transient_buffer = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_set_current_buf(transient_buffer)
+local transient_state = Caster.state()
+check(transient_state.active_path == "src/file-01.lua", "transient buffers retain the last normal file focus")
+
+vim.cmd.edit(vim.fn.fnameescape(root .. "/src/file-02.lua"))
+local selected_state = Caster.state()
+check(selected_state.active_path == "src/file-02.lua", "the next selected normal file replaces retained focus")
+vim.cmd.enew({ bang = true })
+
 vim.fn.delete(root, "rf")
 
 if #failures > 0 then

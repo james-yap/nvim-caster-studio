@@ -13,7 +13,7 @@
       --text: #e6e9ef;
       --muted: #8b93a7;
       --panel: rgba(17, 18, 27, .91);
-      --row-height: 32px;
+      --row-height: 25px;
     }
 
     * { box-sizing: border-box; }
@@ -26,18 +26,18 @@
     }
 
     body {
-      padding: 24px;
+      padding: 10px;
       color: var(--text);
       font-family: "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
     }
 
     .panel {
-      width: min(520px, calc(100vw - 48px));
-      max-height: calc(100vh - 48px);
+      width: min(360px, calc(100vw - 20px));
+      max-height: calc(100vh - 20px);
       overflow: hidden;
-      padding: 15px 14px 14px;
+      padding: 10px 9px 9px;
       border: 1px solid rgba(255, 255, 255, .09);
-      border-radius: 16px;
+      border-radius: 12px;
       background:
         radial-gradient(circle at 12% 0%, rgba(137, 180, 250, .11), transparent 35%),
         var(--panel);
@@ -55,16 +55,16 @@
     header {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 7px;
       min-width: 0;
-      margin: 0 4px 10px;
-      padding-bottom: 11px;
+      margin: 0 3px 7px;
+      padding-bottom: 7px;
       border-bottom: 1px solid rgba(255, 255, 255, .075);
     }
 
     .nvim-mark {
-      width: 9px;
-      height: 9px;
+      width: 7px;
+      height: 7px;
       flex: 0 0 auto;
       border-radius: 50%;
       background: var(--accent);
@@ -79,7 +79,7 @@
     .title {
       overflow: hidden;
       color: #f4f5f8;
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 750;
       letter-spacing: .01em;
       text-overflow: ellipsis;
@@ -88,9 +88,9 @@
 
     .root {
       overflow: hidden;
-      margin-top: 2px;
+      margin-top: 1px;
       color: var(--muted);
-      font-size: 10px;
+      font-size: 9px;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -98,12 +98,12 @@
     .count {
       flex: 0 0 auto;
       color: var(--muted);
-      font-size: 10px;
+      font-size: 9px;
     }
 
     .tree {
       margin: 0;
-      padding: 0 3px;
+      padding: 0 2px;
       list-style: none;
     }
 
@@ -114,11 +114,11 @@
       align-items: center;
       min-width: 0;
       height: var(--row-height);
-      margin: 1px 0;
-      padding: 0 9px 0 calc(8px + var(--depth) * 17px);
-      border-radius: 8px;
+      margin: 0;
+      padding: 0 6px 0 calc(4px + var(--depth) * 13px);
+      border-radius: 6px;
       color: #c9ceda;
-      font-size: 13px;
+      font-size: 11.5px;
       line-height: 1;
       transform-origin: left center;
       transition: color 170ms ease, background 170ms ease, transform 200ms cubic-bezier(.2, .9, .2, 1);
@@ -127,7 +127,7 @@
 
     .entry::before {
       content: "├─";
-      width: 25px;
+      width: 20px;
       flex: 0 0 auto;
       color: rgba(139, 147, 167, .48);
       letter-spacing: -3px;
@@ -144,16 +144,16 @@
       color: var(--accent-bright);
       background: linear-gradient(90deg, rgba(166, 227, 161, .17), rgba(166, 227, 161, .045));
       box-shadow: inset 2px 0 var(--accent);
-      transform: translateX(4px) scale(1.045);
+      transform: translateX(2px) scale(1.035);
       font-weight: 750;
     }
 
     .entry.active::before { color: var(--accent); }
 
     .entry.omission {
-      height: 25px;
+      height: 20px;
       color: var(--muted);
-      font-size: 10px;
+      font-size: 9px;
       font-style: italic;
     }
 
@@ -177,11 +177,11 @@
       box-shadow: 0 0 10px rgba(243, 139, 168, .6);
     }
 
-    @media (max-height: 500px) {
-      :root { --row-height: 25px; }
-      body { padding: 12px; }
-      .panel { max-height: calc(100vh - 24px); }
-      .entry { font-size: 11px; }
+    @media (max-height: 400px) {
+      :root { --row-height: 22px; }
+      body { padding: 6px; }
+      .panel { max-height: calc(100vh - 12px); }
+      .entry { font-size: 10.5px; }
     }
   </style>
 </head>
@@ -239,8 +239,8 @@
       rows.forEach((row, index) => {
         row.animate([
           { transform: 'translateX(0) scale(1)', offset: 0 },
-          { transform: 'translateX(9px) scale(1.105)', backgroundColor: 'rgba(137, 180, 250, .14)', offset: .48 },
-          { transform: row.classList.contains('active') ? 'translateX(4px) scale(1.045)' : 'translateX(0) scale(1)', offset: 1 },
+          { transform: 'translateX(6px) scale(1.085)', backgroundColor: 'rgba(137, 180, 250, .14)', offset: .48 },
+          { transform: row.classList.contains('active') ? 'translateX(2px) scale(1.035)' : 'translateX(0) scale(1)', offset: 1 },
         ], {
           duration: 300,
           delay: index * step,

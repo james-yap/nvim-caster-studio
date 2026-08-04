@@ -7,6 +7,7 @@ local M = {
   server = nil,
   root = nil,
   url = nil,
+  last_file = nil,
 }
 
 local function plugin_root()
@@ -25,13 +26,17 @@ local function read_overlay()
   return html
 end
 
+local function canonical_path(path)
+  local absolute = vim.fs.normalize(vim.fn.fnamemodify(path, ":p")):gsub("/$", "")
+  return (vim.uv or vim.loop).fs_realpath(absolute) or absolute
+end
+
 local function resolve_root(override)
   local configured = override or M.config.root
   if type(configured) == "function" then
     configured = configured()
   end
-  local root = configured or vim.fn.getcwd()
-  root = vim.fs.normalize(vim.fn.fnamemodify(root, ":p")):gsub("/$", "")
+  local root = canonical_path(configured or vim.fn.getcwd())
   if vim.fn.isdirectory(root) ~= 1 then
     error("caster root is not a directory: " .. root)
   end
@@ -40,10 +45,10 @@ end
 
 local function current_file()
   local name = vim.api.nvim_buf_get_name(0)
-  if name == "" or vim.bo.buftype ~= "" then
-    return nil
+  if name ~= "" and vim.bo.buftype == "" then
+    M.last_file = canonical_path(name)
   end
-  return vim.fs.normalize(vim.fn.fnamemodify(name, ":p"))
+  return M.last_file
 end
 
 function M.state()
@@ -57,7 +62,11 @@ function M.refresh()
     return
   end
   if not M.config.root then
-    M.root = resolve_root()
+    local next_root = resolve_root()
+    if next_root ~= M.root then
+      M.root = next_root
+      M.last_file = nil
+    end
   end
   M.server:broadcast(M.state())
 end
@@ -80,6 +89,7 @@ function M.start(root_override)
   end
 
   M.root = resolve_root(root_override)
+  M.last_file = nil
   local initial_state = M.state()
   local server = Server.new(M.config, read_overlay(), initial_state)
   local ok, port_or_error = pcall(server.start, server)
@@ -106,6 +116,7 @@ function M.stop()
   M.server = nil
   M.root = nil
   M.url = nil
+  M.last_file = nil
   pcall(vim.api.nvim_del_augroup_by_name, "CasterStudioSession")
   vim.notify("Caster Studio stopped")
 end
