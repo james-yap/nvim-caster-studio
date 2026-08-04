@@ -150,6 +150,42 @@
 
     .entry.active::before { color: var(--accent); }
 
+    .file-change-outline {
+      position: fixed;
+      z-index: 1000;
+      border: 2px solid #ff3030;
+      border-radius: 5px;
+      box-shadow: 0 0 7px rgba(255, 48, 48, .92), inset 0 0 5px rgba(255, 48, 48, .38);
+      opacity: 0;
+      pointer-events: none;
+      transform-origin: center;
+    }
+
+    .file-change-outline.animating {
+      animation: changed-file-outline 2800ms linear both;
+    }
+
+    @keyframes changed-file-outline {
+      0% {
+        opacity: .2;
+        transform: scale(var(--outline-start-scale-x), var(--outline-start-scale-y));
+        animation-timing-function: cubic-bezier(.16, .84, .24, 1);
+      }
+      8% { opacity: 1; }
+      28% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      60% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1);
+      }
+    }
+
     .entry.omission {
       height: 100%;
       color: var(--muted);
@@ -212,6 +248,24 @@
     }
 
 
+    @media (prefers-reduced-motion: reduce) {
+      .file-change-outline.animating {
+        animation-duration: 1400ms;
+        animation-name: changed-file-outline-reduced;
+      }
+
+      @keyframes changed-file-outline-reduced {
+        0%, 60% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1);
+        }
+      }
+    }
+
     @media (max-height: 320px) {
       :root {
         --font-size: 9.5px;
@@ -238,6 +292,7 @@
       title="Drag to resize"
     ></button>
   </main>
+  <div class="file-change-outline" id="file-change-outline" aria-hidden="true"></div>
 
   <script>
     const panel = document.getElementById('panel');
@@ -245,9 +300,11 @@
     const status = document.getElementById('status');
     const projectName = document.getElementById('project-name');
     const widthResizer = document.getElementById('width-resizer');
+    const fileChangeOutline = document.getElementById('file-change-outline');
     let previousPosition = null;
     let firstRender = true;
     let lastSignature = '';
+    let previousActivePath = null;
     let events = null;
     let visibleRows = null;
     let panelWidth = 300;
@@ -269,7 +326,7 @@
     }
 
     function animateTravel(fromPosition, nextPosition) {
-      if (firstRender || fromPosition == null || nextPosition == null || fromPosition === nextPosition) return;
+      if (fromPosition == null || nextPosition == null || fromPosition === nextPosition) return;
 
       const direction = nextPosition > fromPosition ? 1 : -1;
       let rows = [...tree.querySelectorAll('.entry:not(.omission)')].filter((row) => {
@@ -294,6 +351,30 @@
           easing: 'cubic-bezier(.2,.8,.2,1)',
         });
       });
+    }
+
+    function animateFileChange(previousPath, nextPath) {
+      if (!nextPath || previousPath === nextPath) return;
+      const row = tree.querySelector('.entry.active');
+      if (!row) return;
+
+      row.style.transition = 'none';
+      const bounds = row.getBoundingClientRect();
+      row.style.removeProperty('transition');
+      const centerX = bounds.left + bounds.width / 2;
+      const centerY = bounds.top + bounds.height / 2;
+      const startWidth = 2 * Math.max(centerX, window.innerWidth - centerX) + 160;
+      const startHeight = 2 * Math.max(centerY, window.innerHeight - centerY) + 160;
+
+      fileChangeOutline.style.left = `${bounds.left}px`;
+      fileChangeOutline.style.top = `${bounds.top}px`;
+      fileChangeOutline.style.width = `${bounds.width}px`;
+      fileChangeOutline.style.height = `${bounds.height}px`;
+      fileChangeOutline.style.setProperty('--outline-start-scale-x', startWidth / bounds.width);
+      fileChangeOutline.style.setProperty('--outline-start-scale-y', startHeight / bounds.height);
+      fileChangeOutline.classList.remove('animating');
+      void fileChangeOutline.offsetWidth;
+      fileChangeOutline.classList.add('animating');
     }
 
     function render(state) {
@@ -323,9 +404,16 @@
       tree.style.setProperty('--entry-count', Math.max(1, entries.length));
       tree.replaceChildren(...entries.map(makeRow));
       const fromPosition = previousPosition;
-      requestAnimationFrame(() => animateTravel(fromPosition, state.active_position));
-      previousPosition = state.active_position;
+      const fromPath = previousActivePath;
+      const wasFirstRender = firstRender;
       firstRender = false;
+      requestAnimationFrame(() => {
+        if (wasFirstRender) return;
+        animateFileChange(fromPath, state.active_path);
+        animateTravel(fromPosition, state.active_position);
+      });
+      previousPosition = state.active_position;
+      previousActivePath = state.active_path;
     }
 
     function applyPanelWidth() {

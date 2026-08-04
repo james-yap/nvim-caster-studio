@@ -76,6 +76,7 @@ Configuration is merged with the defaults. Set a default ignored name to `false`
 ## Behavior
 
 - `BufEnter`, `BufWinEnter`, and `DirChanged` publish a fresh state over Server-Sent Events.
+- Moving to a different file draws a bright-red outline in from beyond the viewport, settles around the target row above the sidebar, holds briefly, then fades away.
 - Directories sort before files, then alphabetically, like a polished `tree` view.
 - Large projects use broot-style breadth-first filling: shallow branches are represented before deeper traversal.
 - Partially represented branches use local `N unlisted` pruning rows or a directory ellipsis, keeping every rendered row inside the viewport.
