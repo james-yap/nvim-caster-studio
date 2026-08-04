@@ -7,7 +7,6 @@ M.defaults = {
   max_entries = 48,
   max_scan_entries = 5000,
   max_depth = 8,
-  title = "Project",
   show_hidden = false,
   open_browser = false,
   ignore = {

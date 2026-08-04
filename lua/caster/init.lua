@@ -1,3 +1,5 @@
+local uv = vim.uv or vim.loop
+
 local Config = require("caster.config")
 local Server = require("caster.server")
 local Tree = require("caster.tree")
@@ -8,6 +10,8 @@ local M = {
   root = nil,
   url = nil,
   last_file = nil,
+  refresh_timer = nil,
+  refresh_callback = nil,
 }
 
 local function plugin_root()
@@ -28,7 +32,7 @@ end
 
 local function canonical_path(path)
   local absolute = vim.fs.normalize(vim.fn.fnamemodify(path, ":p")):gsub("/$", "")
-  return (vim.uv or vim.loop).fs_realpath(absolute) or absolute
+  return uv.fs_realpath(absolute) or absolute
 end
 
 local function resolve_root(override)
@@ -52,9 +56,7 @@ local function current_file()
 end
 
 function M.state()
-  local state = Tree.build(M.root, current_file(), M.config)
-  state.title = M.config.title
-  return state
+  return Tree.build(M.root, current_file(), M.config)
 end
 
 function M.refresh()
@@ -73,10 +75,15 @@ end
 
 local function install_autocommands()
   local group = vim.api.nvim_create_augroup("CasterStudioSession", { clear = true })
+  M.refresh_timer = uv.new_timer()
+  M.refresh_callback = vim.schedule_wrap(function()
+    M.refresh()
+  end)
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "DirChanged" }, {
     group = group,
     callback = function()
-      vim.schedule(M.refresh)
+      M.refresh_timer:stop()
+      M.refresh_timer:start(30, 0, M.refresh_callback)
     end,
     desc = "Update the Caster Studio overlay",
   })
@@ -112,6 +119,12 @@ function M.stop()
   if not M.server then
     return
   end
+  if M.refresh_timer and not M.refresh_timer:is_closing() then
+    M.refresh_timer:stop()
+    M.refresh_timer:close()
+  end
+  M.refresh_timer = nil
+  M.refresh_callback = nil
   M.server:stop()
   M.server = nil
   M.root = nil

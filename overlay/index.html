@@ -13,7 +13,7 @@
       --text: #e6e9ef;
       --muted: #8b93a7;
       --panel: rgba(17, 18, 27, .91);
-      --row-height: 25px;
+      --row-height: 22px;
     }
 
     * { box-sizing: border-box; }
@@ -26,18 +26,19 @@
     }
 
     body {
-      padding: 10px;
+      padding: 2px 0 2px 3px;
       color: var(--text);
       font-family: "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
     }
 
     .panel {
-      width: min(360px, calc(100vw - 20px));
-      max-height: calc(100vh - 20px);
+      position: relative;
+      width: min(300px, calc(100vw - 3px));
+      max-height: calc(100vh - 4px);
       overflow: hidden;
-      padding: 10px 9px 9px;
-      border: 1px solid rgba(255, 255, 255, .09);
-      border-radius: 12px;
+      padding: 3px 2px 3px 4px;
+      border: 1px solid rgba(255, 255, 255, .075);
+      border-radius: 7px;
       background:
         radial-gradient(circle at 12% 0%, rgba(137, 180, 250, .11), transparent 35%),
         var(--panel);
@@ -52,58 +53,29 @@
       transform: none;
     }
 
-    header {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      min-width: 0;
-      margin: 0 3px 7px;
-      padding-bottom: 7px;
-      border-bottom: 1px solid rgba(255, 255, 255, .075);
-    }
-
-    .nvim-mark {
-      width: 7px;
-      height: 7px;
-      flex: 0 0 auto;
+    .status {
+      position: absolute;
+      z-index: 3;
+      top: 4px;
+      right: 4px;
+      width: 4px;
+      height: 4px;
       border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 13px rgba(166, 227, 161, .72);
+      box-shadow: 0 0 5px rgba(166, 227, 161, .55);
+      opacity: .65;
+      pointer-events: none;
+      transition: background 180ms ease, box-shadow 180ms ease;
     }
 
-    .project {
-      min-width: 0;
-      flex: 1;
-    }
-
-    .title {
-      overflow: hidden;
-      color: #f4f5f8;
-      font-size: 12px;
-      font-weight: 750;
-      letter-spacing: .01em;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .root {
-      overflow: hidden;
-      margin-top: 1px;
-      color: var(--muted);
-      font-size: 9px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .count {
-      flex: 0 0 auto;
-      color: var(--muted);
-      font-size: 9px;
+    .status.disconnected {
+      background: #f38ba8;
+      box-shadow: 0 0 4px rgba(243, 139, 168, .45);
     }
 
     .tree {
       margin: 0;
-      padding: 0 2px;
+      padding: 0;
       list-style: none;
     }
 
@@ -115,10 +87,10 @@
       min-width: 0;
       height: var(--row-height);
       margin: 0;
-      padding: 0 6px 0 calc(4px + var(--depth) * 13px);
-      border-radius: 6px;
+      padding: 0 5px 0 calc(2px + var(--depth) * 11px);
+      border-radius: 5px;
       color: #c9ceda;
-      font-size: 11.5px;
+      font-size: 10.5px;
       line-height: 1;
       transform-origin: left center;
       transition: color 170ms ease, background 170ms ease, transform 200ms cubic-bezier(.2, .9, .2, 1);
@@ -127,7 +99,7 @@
 
     .entry::before {
       content: "├─";
-      width: 20px;
+      width: 17px;
       flex: 0 0 auto;
       color: rgba(139, 147, 167, .48);
       letter-spacing: -3px;
@@ -144,16 +116,16 @@
       color: var(--accent-bright);
       background: linear-gradient(90deg, rgba(166, 227, 161, .17), rgba(166, 227, 161, .045));
       box-shadow: inset 2px 0 var(--accent);
-      transform: translateX(2px) scale(1.035);
+      transform: translateX(1px) scale(1.025);
       font-weight: 750;
     }
 
     .entry.active::before { color: var(--accent); }
 
     .entry.omission {
-      height: 20px;
+      height: 17px;
       color: var(--muted);
-      font-size: 9px;
+      font-size: 8px;
       font-style: italic;
     }
 
@@ -168,44 +140,30 @@
     .forced .name::after {
       content: "  (outside scan)";
       color: var(--muted);
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 400;
     }
 
-    .disconnected .nvim-mark {
-      background: #f38ba8;
-      box-shadow: 0 0 10px rgba(243, 139, 168, .6);
-    }
 
-    @media (max-height: 400px) {
-      :root { --row-height: 22px; }
-      body { padding: 6px; }
-      .panel { max-height: calc(100vh - 12px); }
-      .entry { font-size: 10.5px; }
+    @media (max-height: 320px) {
+      :root { --row-height: 19px; }
+      .entry { font-size: 9.5px; }
     }
   </style>
 </head>
 <body>
   <main class="panel" id="panel" aria-live="polite">
-    <header>
-      <span class="nvim-mark" aria-hidden="true"></span>
-      <div class="project">
-        <div class="title" id="title">Project</div>
-        <div class="root" id="root"></div>
-      </div>
-      <div class="count" id="count"></div>
-    </header>
+    <span class="status" id="status" aria-label="Connected"></span>
     <ol class="tree" id="tree"></ol>
   </main>
 
   <script>
     const panel = document.getElementById('panel');
     const tree = document.getElementById('tree');
-    const title = document.getElementById('title');
-    const root = document.getElementById('root');
-    const count = document.getElementById('count');
+    const status = document.getElementById('status');
     let previousPosition = null;
     let firstRender = true;
+    let lastSignature = '';
 
     function makeRow(entry) {
       const row = document.createElement('li');
@@ -239,8 +197,8 @@
       rows.forEach((row, index) => {
         row.animate([
           { transform: 'translateX(0) scale(1)', offset: 0 },
-          { transform: 'translateX(6px) scale(1.085)', backgroundColor: 'rgba(137, 180, 250, .14)', offset: .48 },
-          { transform: row.classList.contains('active') ? 'translateX(2px) scale(1.035)' : 'translateX(0) scale(1)', offset: 1 },
+          { transform: 'translateX(5px) scale(1.065)', backgroundColor: 'rgba(137, 180, 250, .14)', offset: .48 },
+          { transform: row.classList.contains('active') ? 'translateX(1px) scale(1.025)' : 'translateX(0) scale(1)', offset: 1 },
         ], {
           duration: 300,
           delay: index * step,
@@ -250,13 +208,20 @@
     }
 
     function render(state) {
-      title.textContent = state.title || state.root_name || 'Project';
-      root.textContent = state.root || '';
-      count.textContent = `${state.total || 0} items${state.scan_truncated ? '+' : ''}`;
-      tree.replaceChildren(...(state.entries || []).map(makeRow));
       panel.classList.add('connected');
-      panel.classList.remove('disconnected');
+      status.classList.remove('disconnected');
+      status.setAttribute('aria-label', 'Connected');
 
+      const entries = state.entries || [];
+      const signature = JSON.stringify([
+        state.root,
+        state.active_path,
+        entries.map((entry) => [entry.path, entry.active, entry.position]),
+      ]);
+      if (signature === lastSignature) return;
+      lastSignature = signature;
+
+      tree.replaceChildren(...entries.map(makeRow));
       const fromPosition = previousPosition;
       requestAnimationFrame(() => animateTravel(fromPosition, state.active_position));
       previousPosition = state.active_position;
@@ -265,8 +230,14 @@
 
     const events = new EventSource('/events');
     events.onmessage = (event) => render(JSON.parse(event.data));
-    events.onerror = () => panel.classList.add('disconnected');
-    events.onopen = () => panel.classList.remove('disconnected');
+    events.onerror = () => {
+      status.classList.add('disconnected');
+      status.setAttribute('aria-label', 'Disconnected');
+    };
+    events.onopen = () => {
+      status.classList.remove('disconnected');
+      status.setAttribute('aria-label', 'Connected');
+    };
   </script>
 </body>
 </html>

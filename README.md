@@ -31,7 +31,7 @@ The default browser-source URL is:
 http://127.0.0.1:8765/
 ```
 
-Add that URL to OBS as a **Browser** source. A compact source size around `380 × 700` works well; the page background is transparent and the panel adapts to the available height.
+Add that URL to OBS as a **Browser** source. A compact source size around `310 × 700` works well; the page background is transparent and the panel adapts to the available height.
 
 `:CasterStart` uses Neovim's current working directory. To cast a different root:
 
@@ -53,7 +53,6 @@ require("caster").setup({
   host = "127.0.0.1",
   port = 8765,
   root = nil,              -- string, function returning a path, or current cwd
-  title = "Project",
   max_entries = 48,        -- maximum visible rows, including omission rows
   max_scan_entries = 5000, -- hard bound for filesystem traversal
   max_depth = 8,
